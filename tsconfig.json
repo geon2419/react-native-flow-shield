@@ -10,5 +10,8 @@
       ]
     }
   },
-  "extends": "expo/tsconfig.base"
+  "extends": "expo/tsconfig.base",
+  "exclude": [
+    "references"
+  ]
 }

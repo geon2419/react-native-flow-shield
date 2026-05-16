@@ -2,9 +2,9 @@ import React, { Suspense } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import Constants from "expo-constants";
 
-// For server and static rendering, use suspense to bundle split
-// the three.js code so it only runs in client environments.
-const Fiber = React.lazy(() => import("@/components/fiber"));
+// Keep WebGPU imports behind the Expo Go guard. Expo Go does not include
+// react-native-wgpu's native module.
+const FlowShield = React.lazy(() => import("@/components/flow-shield"));
 
 export default function Page() {
   if (Constants.appOwnership === "expo") {
@@ -32,7 +32,7 @@ export default function Page() {
 
   return (
     <Suspense fallback={<ActivityIndicator animating />}>
-      <Fiber />
+      <FlowShield />
     </Suspense>
   );
 }

@@ -1,16 +1,10 @@
-// https://github.com/wcandillon/react-native-webgpu/blob/578ad989b4326724702b14245d5c82622849ee23/apps/example/src/ThreeJS/components/FiberCanvas.tsx#L1
-import * as THREE from "three/webgpu";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import type { ReconcilerRoot, RootState } from "@react-three/fiber";
-import {
-  extend,
-  createRoot,
-  unmountComponentAtNode,
-  events,
-} from "@react-three/fiber";
+import { createRoot, events, extend, unmountComponentAtNode } from "@react-three/fiber";
 import type { ViewProps } from "react-native";
 import { PixelRatio } from "react-native";
-import { Canvas, type CanvasRef } from "react-native-wgpu";
+import { Canvas, type CanvasRef, type NativeCanvas } from "react-native-wgpu";
+import * as THREE from "three/webgpu";
 
 import { makeWebGPURenderer, ReactNativeCanvas } from "@/lib/make-webgpu-renderer";
 
@@ -21,61 +15,61 @@ interface FiberCanvasProps {
   scene?: THREE.Scene;
 }
 
-export const FiberCanvas = ({
-  children,
-  style,
-  scene,
-  camera,
-}: FiberCanvasProps) => {
+/**
+ * react-native-wgpu Canvas를 React Three Fiber root로 연결합니다.
+ * Three WebGPU renderer 초기화와 RN canvas present 호출을 한곳에서 처리합니다.
+ */
+export function FiberCanvas({ children, style, scene, camera }: FiberCanvasProps) {
   const root = useRef<ReconcilerRoot<OffscreenCanvas>>(null!);
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-expect-error
-  React.useMemo(() => extend(THREE), []);
   const canvasRef = useRef<CanvasRef>(null);
-  useEffect(() => {
-    const context = canvasRef.current!.getContext("webgpu")!;
-    const renderer = makeWebGPURenderer(context);
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-expect-error
-    const canvas = new ReactNativeCanvas(context.canvas) as HTMLCanvasElement;
+  useMemo(() => extend(THREE as any), []);
+
+  useEffect(() => {
+    const context = canvasRef.current?.getContext("webgpu");
+    if (!context) return;
+
+    const renderer = makeWebGPURenderer(context);
+    const canvas = new ReactNativeCanvas(
+      context.canvas as unknown as NativeCanvas,
+    ) as unknown as HTMLCanvasElement;
     canvas.width = canvas.clientWidth * PixelRatio.get();
     canvas.height = canvas.clientHeight * PixelRatio.get();
-    const size = {
-      top: 0,
-      left: 0,
-      width: canvas.clientWidth,
-      height: canvas.clientHeight,
-    };
 
     if (!root.current) {
-      root.current = createRoot(canvas);
+      root.current = createRoot(canvas as unknown as OffscreenCanvas);
     }
+
     root.current.configure({
-      size,
+      size: {
+        top: 0,
+        left: 0,
+        width: canvas.clientWidth,
+        height: canvas.clientHeight,
+      },
       events,
       scene,
       camera,
       gl: renderer,
       frameloop: "always",
-      dpr: 1, //PixelRatio.get(),
+      dpr: 1,
       onCreated: async (state: RootState) => {
         const webgpuRenderer = state.gl as unknown as THREE.WebGPURenderer;
         await webgpuRenderer.init();
+
         const renderFrame = webgpuRenderer.render.bind(webgpuRenderer);
-        webgpuRenderer.render = async (s: THREE.Scene, c: THREE.Camera) => {
-          await renderFrame(s, c);
-          context?.present();
+        webgpuRenderer.render = async (nextScene: THREE.Scene, nextCamera: THREE.Camera) => {
+          await renderFrame(nextScene, nextCamera);
+          context.present?.();
         };
       },
     });
     root.current.render(children);
+
     return () => {
-      if (canvas != null) {
-        unmountComponentAtNode(canvas!);
-      }
+      unmountComponentAtNode(canvas);
     };
-  });
+  }, [camera, children, scene]);
 
   return <Canvas ref={canvasRef} style={style} />;
-};
+}

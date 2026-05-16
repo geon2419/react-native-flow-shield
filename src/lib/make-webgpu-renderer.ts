@@ -1,8 +1,10 @@
-// https://github.com/wcandillon/react-native-webgpu/blob/578ad989b4326724702b14245d5c82622849ee23/apps/example/src/ThreeJS/components/makeWebGPURenderer.ts#L1
 import type { NativeCanvas } from "react-native-wgpu";
 import * as THREE from "three/webgpu";
 
-// Here we need to wrap the Canvas into a non-host object for now
+/**
+ * react-native-wgpu의 NativeCanvas를 Three.js가 기대하는 canvas 형태로 감쌉니다.
+ * WebGPU renderer가 width, height, event API에 접근할 수 있게 하는 어댑터입니다.
+ */
 export class ReactNativeCanvas {
   constructor(private canvas: NativeCanvas) {}
 
@@ -10,12 +12,12 @@ export class ReactNativeCanvas {
     return this.canvas.width;
   }
 
-  get height() {
-    return this.canvas.height;
-  }
-
   set width(width: number) {
     this.canvas.width = width;
+  }
+
+  get height() {
+    return this.canvas.height;
   }
 
   set height(height: number) {
@@ -26,12 +28,12 @@ export class ReactNativeCanvas {
     return this.canvas.width;
   }
 
-  get clientHeight() {
-    return this.canvas.height;
-  }
-
   set clientWidth(width: number) {
     this.canvas.width = width;
+  }
+
+  get clientHeight() {
+    return this.canvas.height;
   }
 
   set clientHeight(height: number) {
@@ -39,34 +41,39 @@ export class ReactNativeCanvas {
   }
 
   addEventListener(_type: string, _listener: EventListener) {
-    // TODO
+    // Pointer events will be wired separately when interaction is ported.
   }
 
   removeEventListener(_type: string, _listener: EventListener) {
-    // TODO
+    // Pointer events will be wired separately when interaction is ported.
   }
 
   dispatchEvent(_event: Event) {
-    // TODO
+    // Pointer events will be wired separately when interaction is ported.
   }
 
   setPointerCapture() {
-    // TODO
+    // Pointer events will be wired separately when interaction is ported.
   }
 
   releasePointerCapture() {
-    // TODO
+    // Pointer events will be wired separately when interaction is ported.
   }
 }
 
-export const makeWebGPURenderer = (
+/**
+ * react-native-wgpu canvas context 위에서 동작하는 Three.js WebGPU renderer를 만듭니다.
+ * Three가 geometry, material, render pass를 관리하고 RN canvas에 present합니다.
+ */
+export function makeWebGPURenderer(
   context: GPUCanvasContext,
   { antialias = true }: { antialias?: boolean } = {},
-) =>
-  new THREE.WebGPURenderer({
+) {
+  return new THREE.WebGPURenderer({
     antialias,
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-expect-error
-    canvas: new ReactNativeCanvas(context.canvas),
+    canvas: new ReactNativeCanvas(
+      context.canvas as unknown as NativeCanvas,
+    ) as unknown as HTMLCanvasElement,
     context,
   });
+}
