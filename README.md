@@ -1,22 +1,33 @@
-# Expo with WebGPU
+# Flow Shield
 
-Use [Expo Router](https://docs.expo.dev/router/introduction/) with [react-native-webgpu](https://github.com/wcandillon/react-native-webgpu) and Three.js to build cross-platform 3D and GPU-powered applications.
+Expo + React Native WebGPU + TypeGPU starter for porting the interactive flow shield effect to React Native.
 
-## Launch your own
+## Stack
 
-[![Launch with Expo](https://github.com/expo/examples/blob/master/.gh-assets/launch.svg?raw=true)](https://launch.expo.dev/?github=https://github.com/expo/examples/tree/master/with-webgpu)
+- [Expo Router](https://docs.expo.dev/router/introduction/)
+- [react-native-wgpu](https://github.com/wcandillon/react-native-webgpu)
+- [TypeGPU](https://docs.swmansion.com/TypeGPU/)
+- Three.js WebGPU renderer
 
-## 🚀 How to use
+## How to run
 
-Bootstrap the project:
+This project requires a custom native client for WebGPU.
 
 ```sh
-npx create-expo-app -e with-webgpu
+npm run ios
 ```
 
-Finally you can start the app with `npx expo run` — this project requires a custom client.
+```sh
+npm run android
+```
 
-Deploy on all platforms with Expo Application Services (EAS).
+After the native app is installed, use the development-client server instead of
+Expo Go:
 
-- Deploy the website: `npx eas-cli deploy` — [Learn more](https://docs.expo.dev/eas/hosting/get-started/)
-- Deploy on iOS and Android using: `npx eas-cli build` — [Learn more](https://expo.dev/eas)
+```sh
+npm run start:dev-client
+```
+
+```sh
+npm run web
+```

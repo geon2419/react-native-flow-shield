@@ -60,10 +60,11 @@ export const FiberCanvas = ({
       frameloop: "always",
       dpr: 1, //PixelRatio.get(),
       onCreated: async (state: RootState) => {
-        await state.gl.init();
-        const renderFrame = state.gl.render.bind(state.gl);
-        state.gl.render = (s: THREE.Scene, c: THREE.Camera) => {
-          renderFrame(s, c);
+        const webgpuRenderer = state.gl as unknown as THREE.WebGPURenderer;
+        await webgpuRenderer.init();
+        const renderFrame = webgpuRenderer.render.bind(webgpuRenderer);
+        webgpuRenderer.render = async (s: THREE.Scene, c: THREE.Camera) => {
+          await renderFrame(s, c);
           context?.present();
         };
       },

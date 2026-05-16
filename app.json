@@ -1,8 +1,14 @@
 {
   "expo": {
-    "scheme": "acme",
+    "scheme": "flowshield",
     "userInterfaceStyle": "automatic",
     "orientation": "default",
+    "ios": {
+      "bundleIdentifier": "com.ghlee.flowshield"
+    },
+    "android": {
+      "package": "com.ghlee.flowshield"
+    },
     "web": {
       "output": "single"
     },
