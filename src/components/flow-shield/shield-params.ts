@@ -7,6 +7,8 @@ export interface HexParams {
   scale: number;
   opacity: number;
   edgeWidth: number;
+  flashSpeed: number;
+  flashIntensity: number;
 }
 
 export interface ShieldParams {
@@ -27,5 +29,7 @@ export const SHIELD_PARAMS: ShieldParams = {
     scale: 3,
     opacity: 0.13,
     edgeWidth: 0.06,
+    flashSpeed: 0.6,
+    flashIntensity: 0.11,
   },
 };

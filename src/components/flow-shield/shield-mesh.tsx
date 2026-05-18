@@ -28,13 +28,17 @@ export function ShieldMesh({ controlsRef }: ShieldMeshProps) {
     if (!mesh) return;
 
     const controls = controlsRef.current;
+    const elapsedSeconds = clock.elapsedTime;
+    shieldMaterial.uniforms.time.value = elapsedSeconds;
     shieldMaterial.uniforms.fresnelPower.value = controls.fresnel.power;
     shieldMaterial.uniforms.fresnelStrength.value = controls.fresnel.strength;
     shieldMaterial.uniforms.hexScale.value = controls.hex.scale;
     shieldMaterial.uniforms.hexOpacity.value = controls.hex.opacity;
     shieldMaterial.uniforms.hexEdgeWidth.value = controls.hex.edgeWidth;
+    shieldMaterial.uniforms.hexFlashSpeed.value = controls.hex.flashSpeed;
+    shieldMaterial.uniforms.hexFlashIntensity.value =
+      controls.hex.flashIntensity;
 
-    const elapsedSeconds = clock.elapsedTime;
     const scale = 1.0 + Math.sin(elapsedSeconds * 2.2) * 0.02;
     mesh.rotation.y = elapsedSeconds * 0.16;
     mesh.scale.setScalar(scale);

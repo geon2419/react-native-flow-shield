@@ -15,9 +15,13 @@ interface ShieldControlsProps {
     scale: number;
     opacity: number;
     edgeWidth: number;
+    flashSpeed: number;
+    flashIntensity: number;
     onScaleChange: (value: number) => void;
     onOpacityChange: (value: number) => void;
     onEdgeWidthChange: (value: number) => void;
+    onFlashSpeedChange: (value: number) => void;
+    onFlashIntensityChange: (value: number) => void;
   };
 }
 
@@ -105,6 +109,26 @@ export function ShieldControls({
           maximumValue={0.2}
           step={0.005}
           onValueChange={hex.onEdgeWidthChange}
+        />
+        <ControlSlider
+          label="Grid Flicker Speed"
+          minimumLabel="Slow"
+          maximumLabel="Fast"
+          value={hex.flashSpeed}
+          minimumValue={0.5}
+          maximumValue={8}
+          step={0.1}
+          onValueChange={hex.onFlashSpeedChange}
+        />
+        <ControlSlider
+          label="Grid Flicker Intensity"
+          minimumLabel="Calm"
+          maximumLabel="Bright"
+          value={hex.flashIntensity}
+          minimumValue={0}
+          maximumValue={1}
+          step={0.01}
+          onValueChange={hex.onFlashIntensityChange}
         />
       </ScrollView>
     </View>

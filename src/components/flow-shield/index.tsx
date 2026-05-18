@@ -56,6 +56,16 @@ export default function FlowShield() {
     setHex((current) => ({ ...current, edgeWidth: value }));
   };
 
+  const handleHexFlashSpeedChange = (value: number) => {
+    controlsRef.current.hex.flashSpeed = value;
+    setHex((current) => ({ ...current, flashSpeed: value }));
+  };
+
+  const handleHexFlashIntensityChange = (value: number) => {
+    controlsRef.current.hex.flashIntensity = value;
+    setHex((current) => ({ ...current, flashIntensity: value }));
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: "#05080c" }}>
       <FiberCanvas style={{ flex: 1 }}>{scene}</FiberCanvas>
@@ -75,6 +85,8 @@ export default function FlowShield() {
             onScaleChange: handleHexScaleChange,
             onOpacityChange: handleHexOpacityChange,
             onEdgeWidthChange: handleHexEdgeWidthChange,
+            onFlashSpeedChange: handleHexFlashSpeedChange,
+            onFlashIntensityChange: handleHexFlashIntensityChange,
           }}
         />
       ) : null}
