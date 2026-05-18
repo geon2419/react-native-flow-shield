@@ -3,10 +3,11 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three/webgpu";
 
 import { createShieldMaterial } from "./shield-material";
+import type { FresnelParams, HexParams } from "./shield-params";
 
 export interface ShieldControlsRef {
-  fresnelPower: number;
-  fresnelStrength: number;
+  fresnel: FresnelParams;
+  hex: HexParams;
 }
 
 interface ShieldMeshProps {
@@ -15,7 +16,7 @@ interface ShieldMeshProps {
 
 /**
  * Three.js geometry/material 추상화로 실드 sphere를 선언합니다.
- * 현재는 레퍼런스의 첫 시각 레이어인 Fresnel rim sphere를 표현합니다.
+ * 현재는 레퍼런스의 Fresnel rim과 procedural hex grid 레이어를 표현합니다.
  */
 export function ShieldMesh({ controlsRef }: ShieldMeshProps) {
   const meshRef = useRef<THREE.Mesh>(null);
@@ -27,8 +28,11 @@ export function ShieldMesh({ controlsRef }: ShieldMeshProps) {
     if (!mesh) return;
 
     const controls = controlsRef.current;
-    shieldMaterial.uniforms.fresnelPower.value = controls.fresnelPower;
-    shieldMaterial.uniforms.fresnelStrength.value = controls.fresnelStrength;
+    shieldMaterial.uniforms.fresnelPower.value = controls.fresnel.power;
+    shieldMaterial.uniforms.fresnelStrength.value = controls.fresnel.strength;
+    shieldMaterial.uniforms.hexScale.value = controls.hex.scale;
+    shieldMaterial.uniforms.hexOpacity.value = controls.hex.opacity;
+    shieldMaterial.uniforms.hexEdgeWidth.value = controls.hex.edgeWidth;
 
     const elapsedSeconds = clock.elapsedTime;
     const scale = 1.0 + Math.sin(elapsedSeconds * 2.2) * 0.02;

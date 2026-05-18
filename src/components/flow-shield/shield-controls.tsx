@@ -1,25 +1,37 @@
 import Slider from "@react-native-community/slider";
-import { Text, View } from "react-native";
+import { ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+const CONTROL_PANEL_MAX_HEIGHT_RATIO = 0.3;
+
 interface ShieldControlsProps {
-  fresnelPower: number;
-  fresnelStrength: number;
-  onFresnelPowerChange: (value: number) => void;
-  onFresnelStrengthChange: (value: number) => void;
+  fresnel: {
+    power: number;
+    strength: number;
+    onPowerChange: (value: number) => void;
+    onStrengthChange: (value: number) => void;
+  };
+  hex: {
+    scale: number;
+    opacity: number;
+    edgeWidth: number;
+    onScaleChange: (value: number) => void;
+    onOpacityChange: (value: number) => void;
+    onEdgeWidthChange: (value: number) => void;
+  };
 }
 
 /**
- * 모바일에서 엄지로 조작하기 쉬운 하단 Fresnel 컨트롤 패널입니다.
- * rim의 날카로움과 밝기를 각각 슬라이더로 조절합니다.
+ * 모바일에서 엄지로 조작하기 쉬운 하단 실드 컨트롤 패널입니다.
+ * Fresnel rim과 hex grid의 주요 파라미터를 슬라이더로 조절합니다.
  */
 export function ShieldControls({
-  fresnelPower,
-  fresnelStrength,
-  onFresnelPowerChange,
-  onFresnelStrengthChange,
+  fresnel,
+  hex,
 }: ShieldControlsProps) {
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const panelMaxHeight = height * CONTROL_PANEL_MAX_HEIGHT_RATIO;
 
   return (
     <View
@@ -30,35 +42,71 @@ export function ShieldControls({
         left: 16,
         right: 16,
         bottom: Math.max(insets.bottom, 12),
-        gap: 14,
         padding: 16,
         borderRadius: 18,
         borderCurve: "continuous",
         backgroundColor: "rgba(5, 10, 14, 0.86)",
         borderWidth: 1,
         borderColor: "rgba(145, 226, 255, 0.18)",
+        maxHeight: panelMaxHeight,
       }}
     >
-      <ControlSlider
-        label="Rim Sharpness"
-        minimumLabel="Soft"
-        maximumLabel="Sharp"
-        value={fresnelPower}
-        minimumValue={0.5}
-        maximumValue={5}
-        step={0.05}
-        onValueChange={onFresnelPowerChange}
-      />
-      <ControlSlider
-        label="Rim Intensity"
-        minimumLabel="Dim"
-        maximumLabel="Bright"
-        value={fresnelStrength}
-        minimumValue={0}
-        maximumValue={3}
-        step={0.05}
-        onValueChange={onFresnelStrengthChange}
-      />
+      <ScrollView
+        bounces={false}
+        showsVerticalScrollIndicator
+        contentContainerStyle={{ gap: 14, paddingBottom: 2 }}
+      >
+        <ControlSlider
+          label="Rim Sharpness"
+          minimumLabel="Soft"
+          maximumLabel="Sharp"
+          value={fresnel.power}
+          minimumValue={0.5}
+          maximumValue={5}
+          step={0.05}
+          onValueChange={fresnel.onPowerChange}
+        />
+        <ControlSlider
+          label="Rim Intensity"
+          minimumLabel="Dim"
+          maximumLabel="Bright"
+          value={fresnel.strength}
+          minimumValue={0}
+          maximumValue={3}
+          step={0.05}
+          onValueChange={fresnel.onStrengthChange}
+        />
+        <ControlSlider
+          label="Grid Scale"
+          minimumLabel="Sparse"
+          maximumLabel="Dense"
+          value={hex.scale}
+          minimumValue={1}
+          maximumValue={20}
+          step={0.5}
+          onValueChange={hex.onScaleChange}
+        />
+        <ControlSlider
+          label="Grid Opacity"
+          minimumLabel="Hidden"
+          maximumLabel="Bright"
+          value={hex.opacity}
+          minimumValue={0}
+          maximumValue={1}
+          step={0.01}
+          onValueChange={hex.onOpacityChange}
+        />
+        <ControlSlider
+          label="Grid Line Width"
+          minimumLabel="Thin"
+          maximumLabel="Wide"
+          value={hex.edgeWidth}
+          minimumValue={0.01}
+          maximumValue={0.2}
+          step={0.005}
+          onValueChange={hex.onEdgeWidthChange}
+        />
+      </ScrollView>
     </View>
   );
 }
@@ -94,7 +142,10 @@ function ControlSlider({
           gap: 12,
         }}
       >
-        <Text selectable style={{ color: "#e9f9ff", fontSize: 14, fontWeight: "700" }}>
+        <Text
+          selectable
+          style={{ color: "#e9f9ff", fontSize: 14, fontWeight: "700" }}
+        >
           {label}
         </Text>
         <Text

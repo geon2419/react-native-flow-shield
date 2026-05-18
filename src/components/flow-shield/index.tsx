@@ -14,14 +14,12 @@ import { ShieldSettingsButton } from "./shield-settings-button";
  */
 export default function FlowShield() {
   const controlsRef = useRef<ShieldControlsRef>({
-    fresnelPower: SHIELD_PARAMS.fresnelPower,
-    fresnelStrength: SHIELD_PARAMS.fresnelStrength,
+    fresnel: { ...SHIELD_PARAMS.fresnel },
+    hex: { ...SHIELD_PARAMS.hex },
   });
   const [controlsVisible, setControlsVisible] = useState(false);
-  const [fresnelPower, setFresnelPower] = useState(SHIELD_PARAMS.fresnelPower);
-  const [fresnelStrength, setFresnelStrength] = useState(
-    SHIELD_PARAMS.fresnelStrength,
-  );
+  const [fresnel, setFresnel] = useState(SHIELD_PARAMS.fresnel);
+  const [hex, setHex] = useState(SHIELD_PARAMS.hex);
   const scene = useMemo(
     () => (
       <>
@@ -34,13 +32,28 @@ export default function FlowShield() {
   );
 
   const handleFresnelPowerChange = (value: number) => {
-    controlsRef.current.fresnelPower = value;
-    setFresnelPower(value);
+    controlsRef.current.fresnel.power = value;
+    setFresnel((current) => ({ ...current, power: value }));
   };
 
   const handleFresnelStrengthChange = (value: number) => {
-    controlsRef.current.fresnelStrength = value;
-    setFresnelStrength(value);
+    controlsRef.current.fresnel.strength = value;
+    setFresnel((current) => ({ ...current, strength: value }));
+  };
+
+  const handleHexScaleChange = (value: number) => {
+    controlsRef.current.hex.scale = value;
+    setHex((current) => ({ ...current, scale: value }));
+  };
+
+  const handleHexOpacityChange = (value: number) => {
+    controlsRef.current.hex.opacity = value;
+    setHex((current) => ({ ...current, opacity: value }));
+  };
+
+  const handleHexEdgeWidthChange = (value: number) => {
+    controlsRef.current.hex.edgeWidth = value;
+    setHex((current) => ({ ...current, edgeWidth: value }));
   };
 
   return (
@@ -52,10 +65,17 @@ export default function FlowShield() {
       />
       {controlsVisible ? (
         <ShieldControls
-          fresnelPower={fresnelPower}
-          fresnelStrength={fresnelStrength}
-          onFresnelPowerChange={handleFresnelPowerChange}
-          onFresnelStrengthChange={handleFresnelStrengthChange}
+          fresnel={{
+            ...fresnel,
+            onPowerChange: handleFresnelPowerChange,
+            onStrengthChange: handleFresnelStrengthChange,
+          }}
+          hex={{
+            ...hex,
+            onScaleChange: handleHexScaleChange,
+            onOpacityChange: handleHexOpacityChange,
+            onEdgeWidthChange: handleHexEdgeWidthChange,
+          }}
         />
       ) : null}
     </View>
