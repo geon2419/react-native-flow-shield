@@ -17,16 +17,25 @@ export interface FlowParams {
   intensity: number;
 }
 
+export interface DissolveParams {
+  progress: number;
+  noiseScale: number;
+  edgeWidth: number;
+  edgeIntensity: number;
+  edgeSmoothness: number;
+}
+
 export interface ShieldParams {
   color: string;
   opacity: number;
   fresnel: FresnelParams;
   hex: HexParams;
   flow: FlowParams;
+  dissolve: DissolveParams;
 }
 
 export const SHIELD_PARAMS: ShieldParams = {
-  color: "#26aeff",
+  color: "#1f7dff",
   opacity: 0.76,
   fresnel: {
     power: 1.8,
@@ -43,5 +52,12 @@ export const SHIELD_PARAMS: ShieldParams = {
     scale: 2.4,
     speed: 1.13,
     intensity: 4,
+  },
+  dissolve: {
+    progress: 1,
+    noiseScale: 1.3,
+    edgeWidth: 0.02,
+    edgeIntensity: 10,
+    edgeSmoothness: 0.5,
   },
 };

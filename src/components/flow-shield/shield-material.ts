@@ -14,6 +14,15 @@ export interface ShieldMaterialUniforms {
   flowScale: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
   flowSpeed: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
   flowIntensity: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
+  dissolveProgress: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
+  dissolveNoiseScale: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
+  dissolveEdgeWidth: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
+  dissolveEdgeIntensity: THREE.TSL.ShaderNodeObject<
+    THREE.UniformNode<number>
+  >;
+  dissolveEdgeSmoothness: THREE.TSL.ShaderNodeObject<
+    THREE.UniformNode<number>
+  >;
 }
 
 /**
@@ -227,6 +236,51 @@ function createFlowingEnergyNoise(
 }
 
 /**
+ * 3D noise threshold로 실드가 유기적으로 드러나는 dissolve mask를 만듭니다.
+ * 경계 부분은 별도 edge 값으로 분리해 밝은 생성 라인으로 합성합니다.
+ */
+function createDissolveReveal(
+  positionLocal: THREE.TSL.ShaderNodeObject<THREE.Node>,
+  progress: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+  noiseScale: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+  edgeWidth: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+  edgeSmoothness: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+) {
+  const DISSOLVE_NOISE_AMPLITUDE = 0.5;
+  const DISSOLVE_NOISE_PIVOT = 0.5;
+  const DISSOLVE_EDGE_SMOOTH_START = 0.98;
+  const DISSOLVE_EDGE_SMOOTH_END = 0.15;
+  const DISSOLVE_EDGE_OUTER_WIDTH = 0.15;
+  const { mix, mx_noise_float, oneMinus, smoothstep } = THREE.TSL;
+
+  const noise = mx_noise_float(
+    positionLocal.mul(noiseScale),
+    DISSOLVE_NOISE_AMPLITUDE,
+    DISSOLVE_NOISE_PIVOT,
+  );
+  const threshold = oneMinus(progress);
+  const mask = smoothstep(threshold.sub(edgeWidth), threshold, noise);
+  const innerFade = mix(
+    DISSOLVE_EDGE_SMOOTH_START,
+    DISSOLVE_EDGE_SMOOTH_END,
+    edgeSmoothness,
+  );
+  const edgeLow = smoothstep(
+    threshold.sub(edgeWidth),
+    threshold.sub(edgeWidth.mul(innerFade)),
+    noise,
+  );
+  const edgeHigh = smoothstep(
+    threshold.sub(edgeWidth.mul(DISSOLVE_EDGE_OUTER_WIDTH)),
+    threshold,
+    noise,
+  );
+  const edge = edgeLow.mul(oneMinus(edgeHigh));
+
+  return { mask, edge };
+}
+
+/**
  * Fresnel rim과 hex grid 레이어를 최종 실드 밝기값으로 합성합니다.
  * hex는 가장자리에서 더 밝아지고, 셀 단위 flash를 별도 광량으로 더합니다.
  */
@@ -249,8 +303,8 @@ function resolveShieldIntensity(
 }
 
 /**
- * 레퍼런스의 Fresnel, hex grid, flow noise 수식을 WebGPU NodeMaterial로 재구성합니다.
- * 가장자리 광량 위에 육각형 그리드와 흐르는 에너지 노이즈를 더합니다.
+ * 레퍼런스의 Fresnel, hex grid, flow noise, dissolve reveal 수식을 WebGPU NodeMaterial로 재구성합니다.
+ * 가장자리 광량 위에 육각형 그리드, 흐르는 에너지, 생성 경계 glow를 더합니다.
  */
 export function createShieldMaterial() {
   const SHIELD_COLOR_INTENSITY = 2;
@@ -286,6 +340,21 @@ export function createShieldMaterial() {
   const uFlowIntensity = uniform(SHIELD_PARAMS.flow.intensity).label(
     "flowIntensity",
   );
+  const uDissolveProgress = uniform(SHIELD_PARAMS.dissolve.progress).label(
+    "dissolveProgress",
+  );
+  const uDissolveNoiseScale = uniform(
+    SHIELD_PARAMS.dissolve.noiseScale,
+  ).label("dissolveNoiseScale");
+  const uDissolveEdgeWidth = uniform(SHIELD_PARAMS.dissolve.edgeWidth).label(
+    "dissolveEdgeWidth",
+  );
+  const uDissolveEdgeIntensity = uniform(
+    SHIELD_PARAMS.dissolve.edgeIntensity,
+  ).label("dissolveEdgeIntensity");
+  const uDissolveEdgeSmoothness = uniform(
+    SHIELD_PARAMS.dissolve.edgeSmoothness,
+  ).label("dissolveEdgeSmoothness");
 
   const material = new THREE.MeshBasicNodeMaterial({
     transparent: true,
@@ -321,12 +390,30 @@ export function createShieldMaterial() {
   )
     .mul(fresnel)
     .mul(uFlowIntensity);
-  const intensity = resolveShieldIntensity(fresnel, hex, flash, uHexOpacity);
-
-  material.colorNode = color(SHIELD_PARAMS.color).mul(
-    intensity.mul(SHIELD_COLOR_INTENSITY).add(flow),
+  const dissolve = createDissolveReveal(
+    positionLocal,
+    uDissolveProgress,
+    uDissolveNoiseScale,
+    uDissolveEdgeWidth,
+    uDissolveEdgeSmoothness,
   );
-  material.opacityNode = clamp(intensity.mul(SHIELD_PARAMS.opacity), 0, 1);
+  const intensity = resolveShieldIntensity(fresnel, hex, flash, uHexOpacity);
+  const shieldColor = color(SHIELD_PARAMS.color);
+  const edgeGlow = shieldColor.mul(
+    dissolve.edge.mul(uDissolveEdgeIntensity),
+  );
+
+  material.colorNode = shieldColor
+    .mul(intensity.mul(SHIELD_COLOR_INTENSITY).add(flow))
+    .add(edgeGlow);
+  material.opacityNode = clamp(
+    intensity
+      .mul(SHIELD_PARAMS.opacity)
+      .mul(dissolve.mask)
+      .add(dissolve.edge.mul(uDissolveEdgeIntensity)),
+    0,
+    1,
+  );
 
   return {
     material,
@@ -342,6 +429,11 @@ export function createShieldMaterial() {
       flowScale: uFlowScale,
       flowSpeed: uFlowSpeed,
       flowIntensity: uFlowIntensity,
+      dissolveProgress: uDissolveProgress,
+      dissolveNoiseScale: uDissolveNoiseScale,
+      dissolveEdgeWidth: uDissolveEdgeWidth,
+      dissolveEdgeIntensity: uDissolveEdgeIntensity,
+      dissolveEdgeSmoothness: uDissolveEdgeSmoothness,
     },
   };
 }

@@ -31,6 +31,18 @@ interface ShieldControlsProps {
     onSpeedChange: (value: number) => void;
     onIntensityChange: (value: number) => void;
   };
+  dissolve: {
+    progress: number;
+    noiseScale: number;
+    edgeWidth: number;
+    edgeIntensity: number;
+    edgeSmoothness: number;
+    onProgressChange: (value: number) => void;
+    onNoiseScaleChange: (value: number) => void;
+    onEdgeWidthChange: (value: number) => void;
+    onEdgeIntensityChange: (value: number) => void;
+    onEdgeSmoothnessChange: (value: number) => void;
+  };
 }
 
 /**
@@ -41,6 +53,7 @@ export function ShieldControls({
   fresnel,
   hex,
   flow,
+  dissolve,
 }: ShieldControlsProps) {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -168,6 +181,56 @@ export function ShieldControls({
           maximumValue={4}
           step={0.05}
           onValueChange={flow.onIntensityChange}
+        />
+        <ControlSlider
+          label="Reveal Progress"
+          minimumLabel="Hidden"
+          maximumLabel="Visible"
+          value={dissolve.progress}
+          minimumValue={0}
+          maximumValue={1}
+          step={0.01}
+          onValueChange={dissolve.onProgressChange}
+        />
+        <ControlSlider
+          label="Reveal Noise Scale"
+          minimumLabel="Broad"
+          maximumLabel="Detailed"
+          value={dissolve.noiseScale}
+          minimumValue={0.5}
+          maximumValue={10}
+          step={0.1}
+          onValueChange={dissolve.onNoiseScaleChange}
+        />
+        <ControlSlider
+          label="Reveal Edge Width"
+          minimumLabel="Thin"
+          maximumLabel="Wide"
+          value={dissolve.edgeWidth}
+          minimumValue={0.01}
+          maximumValue={0.5}
+          step={0.01}
+          onValueChange={dissolve.onEdgeWidthChange}
+        />
+        <ControlSlider
+          label="Reveal Edge Intensity"
+          minimumLabel="Dim"
+          maximumLabel="Bright"
+          value={dissolve.edgeIntensity}
+          minimumValue={0}
+          maximumValue={10}
+          step={0.1}
+          onValueChange={dissolve.onEdgeIntensityChange}
+        />
+        <ControlSlider
+          label="Reveal Edge Smoothness"
+          minimumLabel="Sharp"
+          maximumLabel="Soft"
+          value={dissolve.edgeSmoothness}
+          minimumValue={0}
+          maximumValue={1}
+          step={0.01}
+          onValueChange={dissolve.onEdgeSmoothnessChange}
         />
       </ScrollView>
     </View>

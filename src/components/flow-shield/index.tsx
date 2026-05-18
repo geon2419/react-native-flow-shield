@@ -1,12 +1,19 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { View } from "react-native";
 
 import { FiberCanvas } from "@/lib/fiber-canvas";
 
 import { ShieldControls } from "./shield-controls";
-import { ShieldMesh, type ShieldControlsRef } from "./shield-mesh";
+import {
+  ShieldMesh,
+  type ShieldControlsRef,
+  type ShieldRevealAnimationRef,
+} from "./shield-mesh";
 import { SHIELD_PARAMS } from "./shield-params";
+import { ShieldRevealButton } from "./shield-reveal-button";
 import { ShieldSettingsButton } from "./shield-settings-button";
+
+const REVEAL_ANIMATION_DURATION_SECONDS = 1.45;
 
 /**
  * Flow Shield 효과를 화면에 배치하는 React Native 래퍼 컴포넌트입니다.
@@ -17,20 +24,36 @@ export default function FlowShield() {
     fresnel: { ...SHIELD_PARAMS.fresnel },
     hex: { ...SHIELD_PARAMS.hex },
     flow: { ...SHIELD_PARAMS.flow },
+    dissolve: { ...SHIELD_PARAMS.dissolve },
+  });
+  const revealAnimationRef = useRef<ShieldRevealAnimationRef>({
+    active: false,
+    startedAt: null,
+    duration: REVEAL_ANIMATION_DURATION_SECONDS,
   });
   const [controlsVisible, setControlsVisible] = useState(false);
   const [fresnel, setFresnel] = useState(SHIELD_PARAMS.fresnel);
   const [hex, setHex] = useState(SHIELD_PARAMS.hex);
   const [flow, setFlow] = useState(SHIELD_PARAMS.flow);
+  const [dissolve, setDissolve] = useState(SHIELD_PARAMS.dissolve);
+
+  const handleRevealAnimationComplete = useCallback(() => {
+    setDissolve((current) => ({ ...current, progress: 1 }));
+  }, []);
+
   const scene = useMemo(
     () => (
       <>
         <color attach="background" args={["#05080c"]} />
         <ambientLight intensity={0.8} />
-        <ShieldMesh controlsRef={controlsRef} />
+        <ShieldMesh
+          controlsRef={controlsRef}
+          revealAnimationRef={revealAnimationRef}
+          onRevealAnimationComplete={handleRevealAnimationComplete}
+        />
       </>
     ),
-    [],
+    [handleRevealAnimationComplete],
   );
 
   const handleFresnelPowerChange = (value: number) => {
@@ -83,9 +106,43 @@ export default function FlowShield() {
     setFlow((current) => ({ ...current, intensity: value }));
   };
 
+  const handleDissolveProgressChange = (value: number) => {
+    controlsRef.current.dissolve.progress = value;
+    setDissolve((current) => ({ ...current, progress: value }));
+  };
+
+  const handleDissolveNoiseScaleChange = (value: number) => {
+    controlsRef.current.dissolve.noiseScale = value;
+    setDissolve((current) => ({ ...current, noiseScale: value }));
+  };
+
+  const handleDissolveEdgeWidthChange = (value: number) => {
+    controlsRef.current.dissolve.edgeWidth = value;
+    setDissolve((current) => ({ ...current, edgeWidth: value }));
+  };
+
+  const handleDissolveEdgeIntensityChange = (value: number) => {
+    controlsRef.current.dissolve.edgeIntensity = value;
+    setDissolve((current) => ({ ...current, edgeIntensity: value }));
+  };
+
+  const handleDissolveEdgeSmoothnessChange = (value: number) => {
+    controlsRef.current.dissolve.edgeSmoothness = value;
+    setDissolve((current) => ({ ...current, edgeSmoothness: value }));
+  };
+
+  const handleRevealReplay = () => {
+    revealAnimationRef.current.active = true;
+    revealAnimationRef.current.startedAt = null;
+    revealAnimationRef.current.duration = REVEAL_ANIMATION_DURATION_SECONDS;
+    controlsRef.current.dissolve.progress = 0;
+    setDissolve((current) => ({ ...current, progress: 0 }));
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: "#05080c" }}>
       <FiberCanvas style={{ flex: 1 }}>{scene}</FiberCanvas>
+      <ShieldRevealButton onPress={handleRevealReplay} />
       <ShieldSettingsButton
         active={controlsVisible}
         onPress={() => setControlsVisible((visible) => !visible)}
@@ -110,6 +167,14 @@ export default function FlowShield() {
             onScaleChange: handleFlowScaleChange,
             onSpeedChange: handleFlowSpeedChange,
             onIntensityChange: handleFlowIntensityChange,
+          }}
+          dissolve={{
+            ...dissolve,
+            onProgressChange: handleDissolveProgressChange,
+            onNoiseScaleChange: handleDissolveNoiseScaleChange,
+            onEdgeWidthChange: handleDissolveEdgeWidthChange,
+            onEdgeIntensityChange: handleDissolveEdgeIntensityChange,
+            onEdgeSmoothnessChange: handleDissolveEdgeSmoothnessChange,
           }}
         />
       ) : null}
