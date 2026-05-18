@@ -16,10 +16,12 @@ export default function FlowShield() {
   const controlsRef = useRef<ShieldControlsRef>({
     fresnel: { ...SHIELD_PARAMS.fresnel },
     hex: { ...SHIELD_PARAMS.hex },
+    flow: { ...SHIELD_PARAMS.flow },
   });
   const [controlsVisible, setControlsVisible] = useState(false);
   const [fresnel, setFresnel] = useState(SHIELD_PARAMS.fresnel);
   const [hex, setHex] = useState(SHIELD_PARAMS.hex);
+  const [flow, setFlow] = useState(SHIELD_PARAMS.flow);
   const scene = useMemo(
     () => (
       <>
@@ -66,6 +68,21 @@ export default function FlowShield() {
     setHex((current) => ({ ...current, flashIntensity: value }));
   };
 
+  const handleFlowScaleChange = (value: number) => {
+    controlsRef.current.flow.scale = value;
+    setFlow((current) => ({ ...current, scale: value }));
+  };
+
+  const handleFlowSpeedChange = (value: number) => {
+    controlsRef.current.flow.speed = value;
+    setFlow((current) => ({ ...current, speed: value }));
+  };
+
+  const handleFlowIntensityChange = (value: number) => {
+    controlsRef.current.flow.intensity = value;
+    setFlow((current) => ({ ...current, intensity: value }));
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: "#05080c" }}>
       <FiberCanvas style={{ flex: 1 }}>{scene}</FiberCanvas>
@@ -87,6 +104,12 @@ export default function FlowShield() {
             onEdgeWidthChange: handleHexEdgeWidthChange,
             onFlashSpeedChange: handleHexFlashSpeedChange,
             onFlashIntensityChange: handleHexFlashIntensityChange,
+          }}
+          flow={{
+            ...flow,
+            onScaleChange: handleFlowScaleChange,
+            onSpeedChange: handleFlowSpeedChange,
+            onIntensityChange: handleFlowIntensityChange,
           }}
         />
       ) : null}

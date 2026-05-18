@@ -11,6 +11,9 @@ export interface ShieldMaterialUniforms {
   hexEdgeWidth: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
   hexFlashSpeed: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
   hexFlashIntensity: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
+  flowScale: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
+  flowSpeed: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
+  flowIntensity: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
 }
 
 /**
@@ -180,6 +183,50 @@ function createHexFlash(
 }
 
 /**
+ * object-space 위치와 시간값으로 표면을 따라 흐르는 3D 노이즈를 만듭니다.
+ * 서로 다른 방향의 노이즈 두 겹을 섞어 레퍼런스의 에너지 흐름감을 재현합니다.
+ */
+function createFlowingEnergyNoise(
+  positionLocal: THREE.TSL.ShaderNodeObject<THREE.Node>,
+  time: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+  scale: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+  speed: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+) {
+  const FLOW_PRIMARY_WEIGHT = 0.6;
+  const FLOW_SECONDARY_WEIGHT = 0.4;
+  const FLOW_SECONDARY_SCALE = 2.1;
+  const FLOW_NOISE_AMPLITUDE = 0.5;
+  const FLOW_NOISE_PIVOT = 0.5;
+  const { mx_noise_float, vec3 } = THREE.TSL;
+
+  const animatedTime = time.mul(speed);
+  const primaryOffset = vec3(
+    animatedTime,
+    animatedTime.mul(0.6),
+    animatedTime.mul(0.4),
+  );
+  const secondaryOffset = vec3(
+    animatedTime.mul(-0.5),
+    animatedTime.mul(0.9),
+    animatedTime.mul(0.3),
+  );
+  const primaryNoise = mx_noise_float(
+    positionLocal.mul(scale).add(primaryOffset),
+    FLOW_NOISE_AMPLITUDE,
+    FLOW_NOISE_PIVOT,
+  );
+  const secondaryNoise = mx_noise_float(
+    positionLocal.mul(scale).mul(FLOW_SECONDARY_SCALE).add(secondaryOffset),
+    FLOW_NOISE_AMPLITUDE,
+    FLOW_NOISE_PIVOT,
+  );
+
+  return primaryNoise
+    .mul(FLOW_PRIMARY_WEIGHT)
+    .add(secondaryNoise.mul(FLOW_SECONDARY_WEIGHT));
+}
+
+/**
  * Fresnel rim과 hex grid 레이어를 최종 실드 밝기값으로 합성합니다.
  * hex는 가장자리에서 더 밝아지고, 셀 단위 flash를 별도 광량으로 더합니다.
  */
@@ -202,8 +249,8 @@ function resolveShieldIntensity(
 }
 
 /**
- * 레퍼런스의 Fresnel rim과 hex grid 수식을 Three WebGPU NodeMaterial로 재구성합니다.
- * 가장자리 광량 위에 object-space 기반 육각형 그리드 레이어를 더합니다.
+ * 레퍼런스의 Fresnel, hex grid, flow noise 수식을 WebGPU NodeMaterial로 재구성합니다.
+ * 가장자리 광량 위에 육각형 그리드와 흐르는 에너지 노이즈를 더합니다.
  */
 export function createShieldMaterial() {
   const SHIELD_COLOR_INTENSITY = 2;
@@ -234,6 +281,11 @@ export function createShieldMaterial() {
   const uHexFlashIntensity = uniform(SHIELD_PARAMS.hex.flashIntensity).label(
     "hexFlashIntensity",
   );
+  const uFlowScale = uniform(SHIELD_PARAMS.flow.scale).label("flowScale");
+  const uFlowSpeed = uniform(SHIELD_PARAMS.flow.speed).label("flowSpeed");
+  const uFlowIntensity = uniform(SHIELD_PARAMS.flow.intensity).label(
+    "flowIntensity",
+  );
 
   const material = new THREE.MeshBasicNodeMaterial({
     transparent: true,
@@ -261,10 +313,18 @@ export function createShieldMaterial() {
     uHexFlashSpeed,
     uHexFlashIntensity,
   ).mul(hexProjection.fade);
+  const flow = createFlowingEnergyNoise(
+    positionLocal,
+    uTime,
+    uFlowScale,
+    uFlowSpeed,
+  )
+    .mul(fresnel)
+    .mul(uFlowIntensity);
   const intensity = resolveShieldIntensity(fresnel, hex, flash, uHexOpacity);
 
   material.colorNode = color(SHIELD_PARAMS.color).mul(
-    intensity.mul(SHIELD_COLOR_INTENSITY),
+    intensity.mul(SHIELD_COLOR_INTENSITY).add(flow),
   );
   material.opacityNode = clamp(intensity.mul(SHIELD_PARAMS.opacity), 0, 1);
 
@@ -279,6 +339,9 @@ export function createShieldMaterial() {
       hexEdgeWidth: uHexEdgeWidth,
       hexFlashSpeed: uHexFlashSpeed,
       hexFlashIntensity: uHexFlashIntensity,
+      flowScale: uFlowScale,
+      flowSpeed: uFlowSpeed,
+      flowIntensity: uFlowIntensity,
     },
   };
 }

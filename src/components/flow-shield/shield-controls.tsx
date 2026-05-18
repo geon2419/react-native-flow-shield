@@ -23,15 +23,24 @@ interface ShieldControlsProps {
     onFlashSpeedChange: (value: number) => void;
     onFlashIntensityChange: (value: number) => void;
   };
+  flow: {
+    scale: number;
+    speed: number;
+    intensity: number;
+    onScaleChange: (value: number) => void;
+    onSpeedChange: (value: number) => void;
+    onIntensityChange: (value: number) => void;
+  };
 }
 
 /**
  * 모바일에서 엄지로 조작하기 쉬운 하단 실드 컨트롤 패널입니다.
- * Fresnel rim과 hex grid의 주요 파라미터를 슬라이더로 조절합니다.
+ * Fresnel rim, hex grid, flow noise의 주요 파라미터를 슬라이더로 조절합니다.
  */
 export function ShieldControls({
   fresnel,
   hex,
+  flow,
 }: ShieldControlsProps) {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -129,6 +138,36 @@ export function ShieldControls({
           maximumValue={1}
           step={0.01}
           onValueChange={hex.onFlashIntensityChange}
+        />
+        <ControlSlider
+          label="Flow Scale"
+          minimumLabel="Broad"
+          maximumLabel="Detailed"
+          value={flow.scale}
+          minimumValue={0.1}
+          maximumValue={8}
+          step={0.1}
+          onValueChange={flow.onScaleChange}
+        />
+        <ControlSlider
+          label="Flow Speed"
+          minimumLabel="Still"
+          maximumLabel="Fast"
+          value={flow.speed}
+          minimumValue={0}
+          maximumValue={2}
+          step={0.01}
+          onValueChange={flow.onSpeedChange}
+        />
+        <ControlSlider
+          label="Flow Intensity"
+          minimumLabel="Dim"
+          maximumLabel="Bright"
+          value={flow.intensity}
+          minimumValue={0}
+          maximumValue={4}
+          step={0.05}
+          onValueChange={flow.onIntensityChange}
         />
       </ScrollView>
     </View>

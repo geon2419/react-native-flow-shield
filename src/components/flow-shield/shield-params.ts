@@ -11,11 +11,18 @@ export interface HexParams {
   flashIntensity: number;
 }
 
+export interface FlowParams {
+  scale: number;
+  speed: number;
+  intensity: number;
+}
+
 export interface ShieldParams {
   color: string;
   opacity: number;
   fresnel: FresnelParams;
   hex: HexParams;
+  flow: FlowParams;
 }
 
 export const SHIELD_PARAMS: ShieldParams = {
@@ -31,5 +38,10 @@ export const SHIELD_PARAMS: ShieldParams = {
     edgeWidth: 0.06,
     flashSpeed: 0.6,
     flashIntensity: 0.11,
+  },
+  flow: {
+    scale: 2.4,
+    speed: 1.13,
+    intensity: 4,
   },
 };
