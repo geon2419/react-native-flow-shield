@@ -30,6 +30,8 @@ export default function FlowShield() {
     active: false,
     startedAt: null,
     duration: REVEAL_ANIMATION_DURATION_SECONDS,
+    fromProgress: SHIELD_PARAMS.dissolve.progress,
+    toProgress: SHIELD_PARAMS.dissolve.progress,
   });
   const [controlsVisible, setControlsVisible] = useState(false);
   const [fresnel, setFresnel] = useState(SHIELD_PARAMS.fresnel);
@@ -37,8 +39,8 @@ export default function FlowShield() {
   const [flow, setFlow] = useState(SHIELD_PARAMS.flow);
   const [dissolve, setDissolve] = useState(SHIELD_PARAMS.dissolve);
 
-  const handleRevealAnimationComplete = useCallback(() => {
-    setDissolve((current) => ({ ...current, progress: 1 }));
+  const handleRevealAnimationComplete = useCallback((progress: number) => {
+    setDissolve((current) => ({ ...current, progress }));
   }, []);
 
   const scene = useMemo(
@@ -131,18 +133,25 @@ export default function FlowShield() {
     setDissolve((current) => ({ ...current, edgeSmoothness: value }));
   };
 
-  const handleRevealReplay = () => {
+  const handleRevealToggle = () => {
+    const fromProgress = controlsRef.current.dissolve.progress;
+    const toProgress = fromProgress >= 0.5 ? 0 : 1;
+
     revealAnimationRef.current.active = true;
     revealAnimationRef.current.startedAt = null;
     revealAnimationRef.current.duration = REVEAL_ANIMATION_DURATION_SECONDS;
-    controlsRef.current.dissolve.progress = 0;
-    setDissolve((current) => ({ ...current, progress: 0 }));
+    revealAnimationRef.current.fromProgress = fromProgress;
+    revealAnimationRef.current.toProgress = toProgress;
+    setDissolve((current) => ({ ...current, progress: toProgress }));
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: "#05080c" }}>
       <FiberCanvas style={{ flex: 1 }}>{scene}</FiberCanvas>
-      <ShieldRevealButton onPress={handleRevealReplay} />
+      <ShieldRevealButton
+        revealed={dissolve.progress >= 0.5}
+        onPress={handleRevealToggle}
+      />
       <ShieldSettingsButton
         active={controlsVisible}
         onPress={() => setControlsVisible((visible) => !visible)}

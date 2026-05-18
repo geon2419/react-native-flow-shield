@@ -21,12 +21,14 @@ export interface ShieldRevealAnimationRef {
   active: boolean;
   startedAt: number | null;
   duration: number;
+  fromProgress: number;
+  toProgress: number;
 }
 
 interface ShieldMeshProps {
   controlsRef: React.RefObject<ShieldControlsRef>;
   revealAnimationRef: React.RefObject<ShieldRevealAnimationRef>;
-  onRevealAnimationComplete: () => void;
+  onRevealAnimationComplete: (progress: number) => void;
 }
 
 /**
@@ -59,13 +61,16 @@ export function ShieldMesh({
       );
       const easedProgress = 1 - Math.pow(1 - progress, 3);
 
-      controls.dissolve.progress = easedProgress;
+      controls.dissolve.progress =
+        revealAnimation.fromProgress +
+        (revealAnimation.toProgress - revealAnimation.fromProgress) *
+          easedProgress;
 
       if (progress >= 1) {
         revealAnimation.active = false;
         revealAnimation.startedAt = null;
-        controls.dissolve.progress = 1;
-        onRevealAnimationComplete();
+        controls.dissolve.progress = revealAnimation.toProgress;
+        onRevealAnimationComplete(revealAnimation.toProgress);
       }
     }
 
