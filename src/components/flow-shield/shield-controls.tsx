@@ -1,5 +1,11 @@
 import Slider from "@react-native-community/slider";
-import { ScrollView, Text, useWindowDimensions, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const CONTROL_PANEL_MAX_HEIGHT_RATIO = 0.3;
@@ -43,6 +49,12 @@ interface ShieldControlsProps {
     onEdgeIntensityChange: (value: number) => void;
     onEdgeSmoothnessChange: (value: number) => void;
   };
+  hit: {
+    damage: number;
+    life: number;
+    onDamageChange: (value: number) => void;
+    onResetLife: () => void;
+  };
 }
 
 /**
@@ -54,6 +66,7 @@ export function ShieldControls({
   hex,
   flow,
   dissolve,
+  hit,
 }: ShieldControlsProps) {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -232,6 +245,66 @@ export function ShieldControls({
           step={0.01}
           onValueChange={dissolve.onEdgeSmoothnessChange}
         />
+        <ControlSlider
+          label="Hit Damage"
+          minimumLabel="Light"
+          maximumLabel="Heavy"
+          value={hit.damage}
+          minimumValue={1}
+          maximumValue={100}
+          step={1}
+          onValueChange={hit.onDamageChange}
+        />
+        <View style={{ gap: 8 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+            }}
+          >
+            <Text
+              selectable
+              style={{ color: "#e9f9ff", fontSize: 14, fontWeight: "700" }}
+            >
+              Shield Life
+            </Text>
+            <Text
+              selectable
+              style={{
+                minWidth: 48,
+                color: "#8fdfff",
+                fontSize: 13,
+                fontVariant: ["tabular-nums"],
+                textAlign: "right",
+              }}
+            >
+              {Math.round(hit.life * 100)}%
+            </Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={hit.onResetLife}
+            style={({ pressed }) => ({
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: 40,
+              borderRadius: 12,
+              backgroundColor: pressed
+                ? "rgba(67, 220, 255, 0.28)"
+                : "rgba(67, 220, 255, 0.16)",
+              borderWidth: 1,
+              borderColor: "rgba(143, 223, 255, 0.28)",
+            })}
+          >
+            <Text
+              style={{ color: "#e9f9ff", fontSize: 14, fontWeight: "800" }}
+            >
+              Reset Life
+            </Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </View>
   );

@@ -32,6 +32,7 @@ export interface HitParams {
   duration: number;
   intensity: number;
   impactRadius: number;
+  damage: number;
 }
 
 export const MAX_HITS = 6;
@@ -79,5 +80,6 @@ export const SHIELD_PARAMS: ShieldParams = {
     duration: 1.8,
     intensity: 4.1,
     impactRadius: 0.3,
+    damage: 5,
   },
 };

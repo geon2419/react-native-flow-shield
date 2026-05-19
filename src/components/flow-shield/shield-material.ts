@@ -4,6 +4,7 @@ import { MAX_HITS, SHIELD_PARAMS } from "./shield-params";
 
 export interface ShieldMaterialUniforms {
   time: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
+  life: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
   fresnelPower: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
   fresnelStrength: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
   hexScale: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
@@ -33,6 +34,19 @@ export interface ShieldMaterialUniforms {
   hitDuration: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
   hitIntensity: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
   hitImpactRadius: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
+}
+
+/**
+ * 실드의 남은 life 값에 따라 기본 색상을 손상 색상 쪽으로 섞습니다.
+ * life가 1이면 기본 파랑, 0에 가까울수록 붉은 경고색이 강해집니다.
+ */
+function createLifeColor(
+  baseColor: THREE.TSL.ShaderNodeObject<THREE.Node>,
+  life: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+) {
+  const { color, mix } = THREE.TSL;
+
+  return mix(color("#ff140a"), baseColor, life);
 }
 
 /**
@@ -464,6 +478,7 @@ export function createShieldMaterial() {
   } = THREE.TSL;
 
   const uTime = uniform(0).label("time");
+  const uLife = uniform(1).label("life");
   const uFresnelPower = uniform(SHIELD_PARAMS.fresnel.power).label(
     "fresnelPower",
   );
@@ -586,7 +601,7 @@ export function createShieldMaterial() {
     flash,
     effectiveHexOpacity,
   );
-  const shieldColor = color(SHIELD_PARAMS.color);
+  const shieldColor = createLifeColor(color(SHIELD_PARAMS.color), uLife);
   const edgeGlow = shieldColor.mul(
     dissolve.edge.mul(uDissolveEdgeIntensity),
   );
@@ -609,6 +624,7 @@ export function createShieldMaterial() {
     material,
     uniforms: {
       time: uTime,
+      life: uLife,
       fresnelPower: uFresnelPower,
       fresnelStrength: uFresnelStrength,
       hexScale: uHexScale,

@@ -43,6 +43,7 @@ export default function FlowShield() {
     position: new THREE.Vector3(0, 1, 0),
     sequence: 0,
   });
+  const lifeRef = useRef(1);
   const sceneRefs = useRef<SceneRefs>({
     mesh: null,
     camera: null,
@@ -62,6 +63,8 @@ export default function FlowShield() {
   const [hex, setHex] = useState(SHIELD_PARAMS.hex);
   const [flow, setFlow] = useState(SHIELD_PARAMS.flow);
   const [dissolve, setDissolve] = useState(SHIELD_PARAMS.dissolve);
+  const [hit, setHit] = useState(SHIELD_PARAMS.hit);
+  const [life, setLife] = useState(1);
 
   const handleRevealAnimationComplete = useCallback((progress: number) => {
     setDissolve((current) => ({ ...current, progress }));
@@ -83,6 +86,7 @@ export default function FlowShield() {
         <ShieldMesh
           controlsRef={controlsRef}
           hitRef={hitRef}
+          lifeRef={lifeRef}
           revealAnimationRef={revealAnimationRef}
           onSceneReady={handleSceneReady}
           onRevealAnimationComplete={handleRevealAnimationComplete}
@@ -115,6 +119,13 @@ export default function FlowShield() {
     const localPoint = mesh.worldToLocal(intersection.point.clone());
     hitRef.current.position.copy(localPoint);
     hitRef.current.sequence += 1;
+
+    const nextLife = Math.max(
+      0,
+      lifeRef.current - controlsRef.current.hit.damage / 100,
+    );
+    lifeRef.current = nextLife;
+    setLife(nextLife);
   };
 
   const handleFresnelPowerChange = (value: number) => {
@@ -192,6 +203,16 @@ export default function FlowShield() {
     setDissolve((current) => ({ ...current, edgeSmoothness: value }));
   };
 
+  const handleHitDamageChange = (value: number) => {
+    controlsRef.current.hit.damage = value;
+    setHit((current) => ({ ...current, damage: value }));
+  };
+
+  const handleResetLife = () => {
+    lifeRef.current = 1;
+    setLife(1);
+  };
+
   const handleRevealToggle = () => {
     const fromProgress = controlsRef.current.dissolve.progress;
     const toProgress = fromProgress >= 0.5 ? 0 : 1;
@@ -251,6 +272,12 @@ export default function FlowShield() {
             onEdgeWidthChange: handleDissolveEdgeWidthChange,
             onEdgeIntensityChange: handleDissolveEdgeIntensityChange,
             onEdgeSmoothnessChange: handleDissolveEdgeSmoothnessChange,
+          }}
+          hit={{
+            damage: hit.damage,
+            life,
+            onDamageChange: handleHitDamageChange,
+            onResetLife: handleResetLife,
           }}
         />
       ) : null}

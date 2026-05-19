@@ -36,6 +36,7 @@ export interface ShieldRevealAnimationRef {
 interface ShieldMeshProps {
   controlsRef: React.RefObject<ShieldControlsRef>;
   hitRef: React.RefObject<ShieldHitRef>;
+  lifeRef: React.RefObject<number>;
   revealAnimationRef: React.RefObject<ShieldRevealAnimationRef>;
   onSceneReady: (mesh: THREE.Mesh, camera: THREE.Camera) => void;
   onRevealAnimationComplete: (progress: number) => void;
@@ -48,6 +49,7 @@ interface ShieldMeshProps {
 export function ShieldMesh({
   controlsRef,
   hitRef,
+  lifeRef,
   revealAnimationRef,
   onSceneReady,
   onRevealAnimationComplete,
@@ -92,6 +94,7 @@ export function ShieldMesh({
     }
 
     shieldMaterial.uniforms.time.value = elapsedSeconds;
+    shieldMaterial.uniforms.life.value = lifeRef.current;
     shieldMaterial.uniforms.fresnelPower.value = controls.fresnel.power;
     shieldMaterial.uniforms.fresnelStrength.value = controls.fresnel.strength;
     shieldMaterial.uniforms.hexScale.value = controls.hex.scale;
