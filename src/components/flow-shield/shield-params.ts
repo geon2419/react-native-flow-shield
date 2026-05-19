@@ -25,6 +25,17 @@ export interface DissolveParams {
   edgeSmoothness: number;
 }
 
+export interface HitParams {
+  ringSpeed: number;
+  ringWidth: number;
+  maxRadius: number;
+  duration: number;
+  intensity: number;
+  impactRadius: number;
+}
+
+export const MAX_HITS = 6;
+
 export interface ShieldParams {
   color: string;
   opacity: number;
@@ -32,6 +43,7 @@ export interface ShieldParams {
   hex: HexParams;
   flow: FlowParams;
   dissolve: DissolveParams;
+  hit: HitParams;
 }
 
 export const SHIELD_PARAMS: ShieldParams = {
@@ -59,5 +71,13 @@ export const SHIELD_PARAMS: ShieldParams = {
     edgeWidth: 0.02,
     edgeIntensity: 10,
     edgeSmoothness: 0.5,
+  },
+  hit: {
+    ringSpeed: 1.75,
+    ringWidth: 0.12,
+    maxRadius: 0.85,
+    duration: 1.8,
+    intensity: 4.1,
+    impactRadius: 0.3,
   },
 };

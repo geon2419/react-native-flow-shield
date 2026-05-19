@@ -1,5 +1,11 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { View } from "react-native";
+import {
+  type GestureResponderEvent,
+  type LayoutChangeEvent,
+  StyleSheet,
+  View,
+} from "react-native";
+import * as THREE from "three/webgpu";
 
 import { FiberCanvas } from "@/lib/fiber-canvas";
 
@@ -7,6 +13,7 @@ import { ShieldControls } from "./shield-controls";
 import {
   ShieldMesh,
   type ShieldControlsRef,
+  type ShieldHitRef,
   type ShieldRevealAnimationRef,
 } from "./shield-mesh";
 import { SHIELD_PARAMS } from "./shield-params";
@@ -14,6 +21,11 @@ import { ShieldRevealButton } from "./shield-reveal-button";
 import { ShieldSettingsButton } from "./shield-settings-button";
 
 const REVEAL_ANIMATION_DURATION_SECONDS = 1.45;
+
+interface SceneRefs {
+  mesh: THREE.Mesh | null;
+  camera: THREE.Camera | null;
+}
 
 /**
  * Flow Shield 효과를 화면에 배치하는 React Native 래퍼 컴포넌트입니다.
@@ -25,7 +37,19 @@ export default function FlowShield() {
     hex: { ...SHIELD_PARAMS.hex },
     flow: { ...SHIELD_PARAMS.flow },
     dissolve: { ...SHIELD_PARAMS.dissolve },
+    hit: { ...SHIELD_PARAMS.hit },
   });
+  const hitRef = useRef<ShieldHitRef>({
+    position: new THREE.Vector3(0, 1, 0),
+    sequence: 0,
+  });
+  const sceneRefs = useRef<SceneRefs>({
+    mesh: null,
+    camera: null,
+  });
+  const canvasSizeRef = useRef({ width: 0, height: 0 });
+  const raycasterRef = useRef(new THREE.Raycaster());
+  const pointerRef = useRef(new THREE.Vector2());
   const revealAnimationRef = useRef<ShieldRevealAnimationRef>({
     active: false,
     startedAt: null,
@@ -43,6 +67,14 @@ export default function FlowShield() {
     setDissolve((current) => ({ ...current, progress }));
   }, []);
 
+  const handleSceneReady = useCallback(
+    (mesh: THREE.Mesh, camera: THREE.Camera) => {
+      sceneRefs.current.mesh = mesh;
+      sceneRefs.current.camera = camera;
+    },
+    [],
+  );
+
   const scene = useMemo(
     () => (
       <>
@@ -50,13 +82,40 @@ export default function FlowShield() {
         <ambientLight intensity={0.8} />
         <ShieldMesh
           controlsRef={controlsRef}
+          hitRef={hitRef}
           revealAnimationRef={revealAnimationRef}
+          onSceneReady={handleSceneReady}
           onRevealAnimationComplete={handleRevealAnimationComplete}
         />
       </>
     ),
-    [handleRevealAnimationComplete],
+    [handleRevealAnimationComplete, handleSceneReady],
   );
+
+  const handleCanvasLayout = (event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    canvasSizeRef.current = { width, height };
+  };
+
+  const handleShieldTouch = (event: GestureResponderEvent) => {
+    const { width, height } = canvasSizeRef.current;
+    const { camera, mesh } = sceneRefs.current;
+    if (!camera || !mesh || width <= 0 || height <= 0) return;
+
+    const pointer = pointerRef.current;
+    pointer.x = (event.nativeEvent.locationX / width) * 2 - 1;
+    pointer.y = -(event.nativeEvent.locationY / height) * 2 + 1;
+
+    const raycaster = raycasterRef.current;
+    raycaster.setFromCamera(pointer, camera);
+
+    const [intersection] = raycaster.intersectObject(mesh, false);
+    if (!intersection) return;
+
+    const localPoint = mesh.worldToLocal(intersection.point.clone());
+    hitRef.current.position.copy(localPoint);
+    hitRef.current.sequence += 1;
+  };
 
   const handleFresnelPowerChange = (value: number) => {
     controlsRef.current.fresnel.power = value;
@@ -146,8 +205,16 @@ export default function FlowShield() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#05080c" }}>
+    <View
+      onLayout={handleCanvasLayout}
+      style={{ flex: 1, backgroundColor: "#05080c" }}
+    >
       <FiberCanvas style={{ flex: 1 }}>{scene}</FiberCanvas>
+      <View
+        onResponderRelease={handleShieldTouch}
+        onStartShouldSetResponder={() => true}
+        style={styles.touchLayer}
+      />
       <ShieldRevealButton
         revealed={dissolve.progress >= 0.5}
         onPress={handleRevealToggle}
@@ -190,3 +257,11 @@ export default function FlowShield() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  touchLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 5,
+    elevation: 5,
+  },
+});

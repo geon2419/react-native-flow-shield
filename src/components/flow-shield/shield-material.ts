@@ -1,6 +1,6 @@
 import * as THREE from "three/webgpu";
 
-import { SHIELD_PARAMS } from "./shield-params";
+import { MAX_HITS, SHIELD_PARAMS } from "./shield-params";
 
 export interface ShieldMaterialUniforms {
   time: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
@@ -23,6 +23,16 @@ export interface ShieldMaterialUniforms {
   dissolveEdgeSmoothness: THREE.TSL.ShaderNodeObject<
     THREE.UniformNode<number>
   >;
+  hitPositions: Array<
+    THREE.TSL.ShaderNodeObject<THREE.UniformNode<THREE.Vector3>>
+  >;
+  hitTimes: Array<THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>>;
+  hitRingSpeed: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
+  hitRingWidth: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
+  hitMaxRadius: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
+  hitDuration: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
+  hitIntensity: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
+  hitImpactRadius: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>;
 }
 
 /**
@@ -281,6 +291,142 @@ function createDissolveReveal(
 }
 
 /**
+ * 터치 지점에서 시작해 구 표면을 따라 퍼지는 hit ring을 계산합니다.
+ * 동시에 터치 주변 헥스 셀을 짧게 밝히는 boost 값을 함께 만듭니다.
+ */
+function createHitImpact(
+  positionLocal: THREE.TSL.ShaderNodeObject<THREE.Node>,
+  time: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+  hitPosition: THREE.TSL.ShaderNodeObject<THREE.UniformNode<THREE.Vector3>>,
+  hitTime: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+  ringSpeed: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+  ringWidth: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+  maxRadius: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+  duration: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+  impactRadius: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+) {
+  const HIT_NOISE_SCALE = 5;
+  const HIT_NOISE_TIME_SCALE = 2;
+  const HIT_NOISE_AMPLITUDE = 0.5;
+  const HIT_NOISE_PIVOT = 0.5;
+  const HIT_NOISE_OFFSET_SCALE = 0.1;
+  const HIT_FADE_START_RATIO = 0.5;
+  const HIT_RADIAL_FADE_START_RATIO = 0.75;
+  const HIT_ZONE_FADE_RATIO = 0.35;
+  const {
+    abs,
+    acos,
+    clamp,
+    dot,
+    min,
+    mx_noise_float,
+    normalize,
+    oneMinus,
+    smoothstep,
+    step,
+    vec3,
+  } = THREE.TSL;
+
+  const elapsed = time.sub(hitTime);
+  const isActive = step(0, hitTime)
+    .mul(step(0, elapsed))
+    .mul(step(elapsed, duration));
+  const normalizedPosition = normalize(positionLocal);
+  const distanceToHit = acos(
+    clamp(dot(normalizedPosition, normalize(hitPosition)), -1, 1),
+  );
+  const ringRadius = min(elapsed.mul(ringSpeed), maxRadius);
+  const noiseTime = elapsed.mul(HIT_NOISE_TIME_SCALE);
+  const noiseOffset = mx_noise_float(
+    normalizedPosition
+      .mul(HIT_NOISE_SCALE)
+      .add(vec3(noiseTime, noiseTime, noiseTime)),
+    HIT_NOISE_AMPLITUDE,
+    HIT_NOISE_PIVOT,
+  )
+    .sub(HIT_NOISE_PIVOT)
+    .mul(HIT_NOISE_OFFSET_SCALE);
+  const ring = oneMinus(
+    smoothstep(
+      0,
+      ringWidth,
+      abs(distanceToHit.add(noiseOffset).sub(ringRadius)),
+    ),
+  );
+  const lifetimeFade = oneMinus(
+    smoothstep(duration.mul(HIT_FADE_START_RATIO), duration, elapsed),
+  );
+  const radialFade = oneMinus(
+    smoothstep(
+      maxRadius.mul(HIT_RADIAL_FADE_START_RATIO),
+      maxRadius,
+      ringRadius,
+    ),
+  );
+  const ringContribution = ring.mul(lifetimeFade).mul(radialFade).mul(isActive);
+  const impactZone = oneMinus(smoothstep(0, impactRadius, distanceToHit));
+  const impactZoneFade = oneMinus(
+    smoothstep(0, duration.mul(HIT_ZONE_FADE_RATIO), elapsed),
+  );
+  const hexBoost = impactZone.mul(impactZoneFade).mul(isActive);
+
+  return {
+    ring: ringContribution,
+    hexBoost,
+  };
+}
+
+/**
+ * 여러 터치 슬롯의 hit ring과 hex boost를 합산합니다.
+ * 레퍼런스의 fixed-size hit buffer를 TSL에서는 명시 슬롯으로 펼쳐 계산합니다.
+ */
+function createHitImpacts(
+  positionLocal: THREE.TSL.ShaderNodeObject<THREE.Node>,
+  time: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+  hitPositions: Array<
+    THREE.TSL.ShaderNodeObject<THREE.UniformNode<THREE.Vector3>>
+  >,
+  hitTimes: Array<THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>>,
+  ringSpeed: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+  ringWidth: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+  maxRadius: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+  duration: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+  impactRadius: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+) {
+  const HIT_RING_MAX_CONTRIBUTION = 2;
+  const HIT_HEX_BOOST_MAX = 1;
+  const { min } = THREE.TSL;
+
+  const impacts = hitPositions.map((hitPosition, index) =>
+    createHitImpact(
+      positionLocal,
+      time,
+      hitPosition,
+      hitTimes[index],
+      ringSpeed,
+      ringWidth,
+      maxRadius,
+      duration,
+      impactRadius,
+    ),
+  );
+  const [firstImpact, ...nextImpacts] = impacts;
+  const summedRing = nextImpacts.reduce(
+    (total, impact) => total.add(impact.ring),
+    firstImpact.ring,
+  );
+  const summedHexBoost = nextImpacts.reduce(
+    (total, impact) => total.add(impact.hexBoost),
+    firstImpact.hexBoost,
+  );
+
+  return {
+    ring: min(summedRing, HIT_RING_MAX_CONTRIBUTION),
+    hexBoost: min(summedHexBoost, HIT_HEX_BOOST_MAX),
+  };
+}
+
+/**
  * Fresnel rim과 hex grid 레이어를 최종 실드 밝기값으로 합성합니다.
  * hex는 가장자리에서 더 밝아지고, 셀 단위 flash를 별도 광량으로 더합니다.
  */
@@ -288,7 +434,7 @@ function resolveShieldIntensity(
   fresnel: THREE.TSL.ShaderNodeObject<THREE.Node>,
   hex: THREE.TSL.ShaderNodeObject<THREE.Node>,
   flash: THREE.TSL.ShaderNodeObject<THREE.Node>,
-  hexOpacity: THREE.TSL.ShaderNodeObject<THREE.UniformNode<number>>,
+  hexOpacity: THREE.TSL.ShaderNodeObject<THREE.Node>,
 ) {
   const HEX_RIM_BLEND = 0.7;
   const HEX_BASE_VISIBILITY = 0.3;
@@ -355,6 +501,28 @@ export function createShieldMaterial() {
   const uDissolveEdgeSmoothness = uniform(
     SHIELD_PARAMS.dissolve.edgeSmoothness,
   ).label("dissolveEdgeSmoothness");
+  const uHitPositions = Array.from({ length: MAX_HITS }, (_, index) =>
+    uniform(new THREE.Vector3(0, 1, 0)).label(`hitPosition${index}`),
+  );
+  const uHitTimes = Array.from({ length: MAX_HITS }, (_, index) =>
+    uniform(-999).label(`hitTime${index}`),
+  );
+  const uHitRingSpeed = uniform(SHIELD_PARAMS.hit.ringSpeed).label(
+    "hitRingSpeed",
+  );
+  const uHitRingWidth = uniform(SHIELD_PARAMS.hit.ringWidth).label(
+    "hitRingWidth",
+  );
+  const uHitMaxRadius = uniform(SHIELD_PARAMS.hit.maxRadius).label(
+    "hitMaxRadius",
+  );
+  const uHitDuration = uniform(SHIELD_PARAMS.hit.duration).label("hitDuration");
+  const uHitIntensity = uniform(SHIELD_PARAMS.hit.intensity).label(
+    "hitIntensity",
+  );
+  const uHitImpactRadius = uniform(SHIELD_PARAMS.hit.impactRadius).label(
+    "hitImpactRadius",
+  );
 
   const material = new THREE.MeshBasicNodeMaterial({
     transparent: true,
@@ -397,7 +565,27 @@ export function createShieldMaterial() {
     uDissolveEdgeWidth,
     uDissolveEdgeSmoothness,
   );
-  const intensity = resolveShieldIntensity(fresnel, hex, flash, uHexOpacity);
+  const hit = createHitImpacts(
+    positionLocal,
+    uTime,
+    uHitPositions,
+    uHitTimes,
+    uHitRingSpeed,
+    uHitRingWidth,
+    uHitMaxRadius,
+    uHitDuration,
+    uHitImpactRadius,
+  );
+  const hitGlow = hit.ring.mul(uHitIntensity).mul(dissolve.mask);
+  const effectiveHexOpacity = uHexOpacity.add(
+    hit.hexBoost.mul(uHitIntensity).mul(dissolve.mask),
+  );
+  const intensity = resolveShieldIntensity(
+    fresnel,
+    hex,
+    flash,
+    effectiveHexOpacity,
+  );
   const shieldColor = color(SHIELD_PARAMS.color);
   const edgeGlow = shieldColor.mul(
     dissolve.edge.mul(uDissolveEdgeIntensity),
@@ -405,12 +593,14 @@ export function createShieldMaterial() {
 
   material.colorNode = shieldColor
     .mul(intensity.mul(SHIELD_COLOR_INTENSITY).add(flow))
-    .add(edgeGlow);
+    .add(edgeGlow)
+    .add(shieldColor.mul(hitGlow));
   material.opacityNode = clamp(
     intensity
       .mul(SHIELD_PARAMS.opacity)
       .mul(dissolve.mask)
-      .add(dissolve.edge.mul(uDissolveEdgeIntensity)),
+      .add(dissolve.edge.mul(uDissolveEdgeIntensity))
+      .add(hitGlow.mul(0.18)),
     0,
     1,
   );
@@ -434,6 +624,14 @@ export function createShieldMaterial() {
       dissolveEdgeWidth: uDissolveEdgeWidth,
       dissolveEdgeIntensity: uDissolveEdgeIntensity,
       dissolveEdgeSmoothness: uDissolveEdgeSmoothness,
+      hitPositions: uHitPositions,
+      hitTimes: uHitTimes,
+      hitRingSpeed: uHitRingSpeed,
+      hitRingWidth: uHitRingWidth,
+      hitMaxRadius: uHitMaxRadius,
+      hitDuration: uHitDuration,
+      hitIntensity: uHitIntensity,
+      hitImpactRadius: uHitImpactRadius,
     },
   };
 }
